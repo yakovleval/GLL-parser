@@ -12,7 +12,7 @@ endif()
 project ("GLL-parser")
 
 # Add source to this project's executable.
-add_executable (GLL-parser "GLL-parser.cpp" "GLL-parser.h" "utils.h")
+add_executable (GLL-parser "GLL-parser.cpp" "GLL-parser.h" "utils.h" )
 
 if (CMAKE_VERSION VERSION_GREATER 3.12)
   set_property(TARGET GLL-parser PROPERTY CXX_STANDARD 20)

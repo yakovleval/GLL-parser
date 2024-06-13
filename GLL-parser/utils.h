@@ -4,6 +4,7 @@
 #include <set>
 #include <string>
 #include <vector>
+#include <queue>
 
 enum Labels {
 	EMPTY,
@@ -33,6 +34,7 @@ struct Descriptor {
 	Labels label;
 	int node;
 	int position;
+	std::vector<ParseNode*> parse_nodes;
 };
 
 struct Compare {
@@ -47,8 +49,41 @@ struct Compare {
 	}
 };
 
+struct PopResult {
+	int node;
+	int position;
+	std::vector<ParseNode*> parse_nodes;
+
+	bool operator<(const PopResult& other) const {
+		if (node != other.node) {
+			return node < other.node;
+		}
+		if (position != other.position) {
+			return position < other.position;
+		}
+		return false;
+	}
+};
+
 struct ParseNode {
-	char literal;
-	int depth;
+	char _literal;
+	int height = 0;
 	std::vector<struct ParseNode*> children;
+	ParseNode(char ch, std::vector<struct ParseNode*> parse_nodes = {}) {
+		_literal = ch;
+		children = parse_nodes;
+		for (int i = 0; i < children.size(); i++) {
+			if (height < children[i]->height) {
+				height = children[i]->height;
+			}
+		}
+		height++;
+	}
+
+	~ParseNode()
+	{
+		for (int i = 0; i < children.size(); i++) {
+			free(children[i]);
+		}
+	}
 };
