@@ -35,16 +35,17 @@ struct Descriptor {
 	int node;
 	int position;
 	std::vector<ParseNode*> parse_nodes;
-};
 
-struct Compare {
-	bool operator()(const Descriptor& x, const Descriptor& y) const {
-		if (x.label != y.label)
-			return x.label < y.label;
-		if (x.node != y.node)
-			return x.node < y.node;
-		if (x.position != y.position)
-			return x.position < y.position;
+	bool operator<(const Descriptor& other) const {
+		if (label != other.label) {
+			return label < other.label;
+		}
+		if (node != other.node) {
+			return node < other.node;
+		}
+		if (position != other.position) {
+			return position < other.position;
+		}
 		return false;
 	}
 };

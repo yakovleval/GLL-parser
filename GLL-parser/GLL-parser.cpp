@@ -6,7 +6,7 @@
 using namespace std;
 
 queue<Descriptor> pending;
-vector<Descriptor> used;
+set<Descriptor> used;
 set<PopResult> popped;
 int current_node;
 vector<GSSNode> nodes = { {Labels::EMPTY, 0 } };
@@ -217,17 +217,10 @@ int create(Labels label) {
 
 void add(Labels label, int node, int position, vector<ParseNode*> parse_nodes) {
 	Descriptor descriptor = { label, node, position, parse_nodes };
-	bool contains = false;
-	for (auto d : used) {
-		if (d.label == label && d.node == node && d.position == position) {
-			contains = true;
-			break;
-		}
-	}
-	if (!contains || label == Labels::EMPTY &&
+	if (!used.contains(descriptor) || label == Labels::EMPTY &&
 		node == 0 && position == input.length()) {
 		pending.push(descriptor);
-		used.push_back(descriptor);
+		used.insert(descriptor);
 	}
 }
 
