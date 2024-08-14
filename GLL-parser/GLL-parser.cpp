@@ -1,5 +1,10 @@
 ﻿#include <queue>
 #include <stack>
+#include <cctype>
+#include <iostream>
+#include <fstream>
+#include <sstream>
+#include <string>
 #include "gll-parser.h"
 #include "utils.h"
 
@@ -9,23 +14,19 @@ queue<Descriptor> pending;
 set<Descriptor> used;
 set<PopResult> popped;
 int current_node;
-vector<GSSNode> nodes = { {Labels::EMPTY, 0 } };
+vector<GSSNode> nodes = { {Label::create_empty(), 0}};
 vector<GSSEdge> edges = { {0, 0, {}} };
 int current_position = 0;
 string input;
 vector<ParseNode*> parse_nodes;
 
-void init() {
-	pending.push({ Labels::lE, 0, 0, {} });
-}
-
 vector<ParseNode*> parse() {
-	init();
+	add({ "S", 0 }, 0, 0, {});
 	vector<ParseNode*> trees;
 	while (!pending.empty()) {
 		auto descriptor = pending.front();
 		pending.pop();
-		if (descriptor.label == Labels::EMPTY &&
+		if (descriptor.label.is_empty() &&
 			descriptor.node == 0 &&
 			descriptor.position == input.length()) {
 			trees.push_back(descriptor.parse_nodes[0]);
@@ -33,121 +34,14 @@ vector<ParseNode*> parse() {
 		current_node = descriptor.node;
 		current_position = descriptor.position;
 		parse_nodes = descriptor.parse_nodes;
-		GOTO(descriptor.label);
+		parse_rule(descriptor.label);
 	}
 	return trees;
 }
 
-void E() {
-	char current_char = input.at(current_position);
-	if (first['E'].contains(current_char)) {
-		add(Labels::lE0_0, current_node, current_position, parse_nodes);
-	}
-	if (first['T'].contains(current_char)) {
-		add(Labels::lE1_0, current_node, current_position, parse_nodes);
-	}
-}
-
-void T() {
-	char current_char = input.at(current_position);
-	if (first['T'].contains(current_char)) {
-		add(Labels::lT0_0, current_node, current_position, parse_nodes);
-	}
-	if (first['F'].contains(current_char)) {
-		add(Labels::lT1_0, current_node, current_position, parse_nodes);
-	}
-}
-
-void F() {
-	char current_char = input.at(current_position);
-	if (current_char == '(') {
-		add(Labels::lF0_0, current_node, current_position, parse_nodes);
-	}
-	else if (current_char == '1') {
-		add(Labels::lF1_0, current_node, current_position, parse_nodes);
-	}
-}
-
-void E0_0() {
-	current_node = create(Labels::lE0_1);
-	E();
-}
-
-void E0_1() {
-	if (input[current_position] == '+') {
-		parse_nodes.push_back(new ParseNode('+'));
-		current_position++;
-		if (first['T'].contains(input[current_position])) {
-			current_node = create(Labels::lE0_2);
-			T();
-		}
-	}
-}
-
-void E0_2() { pop(); }
-
-void E1_0() {
-	current_node = create(Labels::lE1_1);
-	T();
-}
-
-void E1_1() { pop(); }
-
-void T0_0() {
-	current_node = create(Labels::lT0_1);
-	T();
-}
-
-void T0_1() {
-	if (input[current_position] == '+') {
-		parse_nodes.push_back(new ParseNode('+'));
-		current_position++;
-		if (first['F'].contains(input[current_position])) {
-			current_node = create(Labels::lT0_2);
-			F();
-		}
-	}
-}
-
-void T0_2() { pop(); }
-
-void T1_0() {
-	current_node = create(Labels::lT1_1);
-	F();
-}
-
-void T1_1() { pop(); }
-
-void F0_0() {
-	if (input[current_position] == '(') {
-		parse_nodes.push_back(new ParseNode('('));
-		current_position++;
-		if (first['E'].contains(input[current_position])) {
-			current_node = create(Labels::lF0_1);
-			E();
-		}
-	}
-}
-
-void F0_1() {
-	if (input[current_position] == ')') {
-		parse_nodes.push_back(new ParseNode(')'));
-		current_position++;
-		pop();
-	}
-}
-
-void F1_0() {
-	if (input[current_position] == '1') {
-		parse_nodes.push_back(new ParseNode('1'));
-		current_position++;
-		pop();
-	}
-}
-
 void pop() {
 	popped.insert({ current_node, current_position, parse_nodes });
-	Labels label = nodes[current_node].label;
+	Label label = nodes[current_node].label;
 	for (auto edge : edges) {
 		if (edge.parent == current_node) {
 			vector<ParseNode*> saved_parse_nodes = edge.parse_nodes;
@@ -157,28 +51,12 @@ void pop() {
 	}
 }
 
-ParseNode* get_parse_node(Labels label, vector<ParseNode*> parse_nodes) {
-	char _literal = '-';
-	switch (label) {
-	case Labels::EMPTY:
-	case Labels::lE0_1:
-	case Labels::lF0_1:
-		_literal = 'E';
-		break;
-	case Labels::lE0_2:
-	case Labels::lE1_1:
-	case Labels::lT0_1:
-		_literal = 'T';
-		break;
-	case Labels::lT0_2:
-	case Labels::lT1_1:
-		_literal = 'F';
-		break;
-	}
+ParseNode* get_parse_node(Label label, vector<ParseNode*> parse_nodes) {
+	char _literal = label.rule[label.pos_inside_rule - 1];
 	return new ParseNode(_literal, parse_nodes);
 }
 
-int create(Labels label) {
+int create(Label label) {
 	int node_index = -1;
 	for (int i = 0; i < nodes.size(); i++) {
 		if (nodes[i].label == label && nodes[i].position == current_position) {
@@ -215,95 +93,59 @@ int create(Labels label) {
 	return node_index;
 }
 
-void add(Labels label, int node, int position, vector<ParseNode*> parse_nodes) {
+void add(Label label, int node, int position, vector<ParseNode*> parse_nodes) {
 	Descriptor descriptor = { label, node, position, parse_nodes };
-	if (!used.contains(descriptor) || label == Labels::EMPTY &&
-		node == 0 && position == input.length()) {
+	if (!used.contains(descriptor)/* || label.is_empty() &&
+		node == 0 && position == input.length()*/) {
 		pending.push(descriptor);
 		used.insert(descriptor);
 	}
 }
 
-void GOTO(Labels label) {
-	switch (label) {
-	case Labels::lE:
-		E();
-		break;
-	case Labels::lE0_0:
-		E0_0();
-		break;
-	case Labels::lE0_1:
-		E0_1();
-		break;
-	case Labels::lE0_2:
-		E0_2();
-		break;
-	case Labels::lE1_0:
-		E1_0();
-		break;
-	case Labels::lE1_1:
-		E1_1();
-		break;
-	case Labels::lT0_0:
-		T0_0();
-		break;
-	case Labels::lT0_1:
-		T0_1();
-		break;
-	case Labels::lT0_2:
-		T0_2();
-		break;
-	case Labels::lT1_0:
-		T1_0();
-		break;
-	case Labels::lT1_1:
-		T1_1();
-		break;
-	case Labels::lF0_0:
-		F0_0();
-		break;
-	case Labels::lF0_1:
-		F0_1();
-		break;
-	case Labels::lF1_0:
-		F1_0();
-		break;
+void parse_rule(Label label) {
+	auto &[rule, pos_inside_rule] = label;
+	if (pos_inside_rule == rule.length()) {
+		pop();
+		return;
 	}
-}
-
-string print_derivation(ParseNode* tree) {
-	vector<ParseNode*> terminals;
-	deque<ParseNode*> stack;
-	stack.push_front(tree);
-	string result = "";
-	result += tree->_literal;
-	result += "->";
-	while (!stack.empty()) {
-		ParseNode* nonterminal = stack.front();
-		stack.pop_front();
-		for (int i = nonterminal->children.size() - 1; i >= 0; i--) {
-			stack.push_front(nonterminal->children[i]);
-		}
-		while (!stack.empty() && stack.front()->children.empty()) {
-			terminals.push_back(stack.front());
-			stack.pop_front();
-		}
-		for (auto terminal : terminals) {
-			result += terminal->_literal;
-		}
-		for (auto nonterminal : stack) {
-			result += nonterminal->_literal;
-		}
-		if (!stack.empty()) {
-			result += "->";
-		}
+	while (pos_inside_rule < rule.length() && 
+		is_terminal(rule[pos_inside_rule])) {
+		if (input[current_position] != rule[pos_inside_rule])
+			return;
+		parse_nodes.push_back(new ParseNode(input[current_position]));
+		current_position++;
+		pos_inside_rule++;
 	}
-	return result;
+	if (pos_inside_rule == rule.length()) {
+		pop();
+		return;
+	}
+	if (grammar.count(rule[pos_inside_rule]) == 0)
+		return;
+	char non_terminal = rule[pos_inside_rule];
+	pos_inside_rule++;
+	current_node = create(label);
+	for (auto grammar_rule : grammar[non_terminal]) {
+		if (first[grammar_rule[0]].contains(input[current_position]))
+			add({grammar_rule, 0}, current_node, current_position, parse_nodes);
+	}
 }
 
 int main()
 {
-	cout << "input the string: " << endl;
+	ifstream grammar_file("../../../grammar.txt");
+	string line;
+	char non_terminal;
+	string rule;
+	map<char, bool> non_terminal_used;
+	while (!grammar_file.eof()) {
+		getline(grammar_file, line);
+		non_terminal = line[0];
+		non_terminal_used[non_terminal] = false;
+		grammar[non_terminal] = split(line.substr(4));
+	}
+	calculate_first('S');
+	cout << "enter the input string: " << endl;
 	cin >> input;
 	auto result = parse();
 	queue<pair<ParseNode*, int>> q;
