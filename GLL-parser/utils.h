@@ -6,6 +6,8 @@
 #include <vector>
 #include <queue>
 
+using namespace std;
+
 enum Labels {
 	EMPTY,
 	lE, lE0_0, lE0_1, lE0_2, lE1_0, lE1_1,
@@ -13,14 +15,40 @@ enum Labels {
 	lF0_0, lF0_1, lF1_0
 };
 
-std::map<char, std::set<char>> first = {
-	{ 'E', {'(', '1'}},
-	{ 'T', {'(', '1'}},
-	{ 'F', {'(', '1'}}
+struct Label {
+	string rule;
+	int pos_inside_rule;
+
+	bool operator<(const Label& other) const {
+		if (rule != other.rule)
+			return rule < other.rule;
+		if (pos_inside_rule != other.pos_inside_rule)
+			return pos_inside_rule < other.pos_inside_rule;
+		return false;
+	}
+
+	bool operator!=(const Label& other) const {
+		return *this < other || other < *this;
+	}
+
+	bool operator==(const Label& other) const {
+		return !(*this != other);
+	}
+
+	static Label create_empty() {
+		return { "S", 1 };
+	}
+
+	bool is_empty() {
+		return rule == "S" && pos_inside_rule == 1;
+	}
 };
 
+map<char, set<char>> first;
+map<char, vector<string>> grammar;
+
 struct GSSNode {
-	Labels label;
+	Label label;
 	int position;
 };
 
@@ -31,7 +59,7 @@ struct GSSEdge {
 };
 
 struct Descriptor {
-	Labels label;
+	Label label;
 	int node;
 	int position;
 	std::vector<ParseNode*> parse_nodes;
@@ -88,3 +116,5 @@ struct ParseNode {
 		}
 	}
 };
+
+//bool is_terminal(char ch);
