@@ -34,7 +34,7 @@ vector<ParseNode*> parse() {
 		current_node = descriptor.node;
 		current_position = descriptor.position;
 		parse_nodes = descriptor.parse_nodes;
-		parse_block(descriptor.label);
+		parse_rule(descriptor.label);
 	}
 	return trees;
 }
@@ -102,7 +102,7 @@ void add(Label label, int node, int position, vector<ParseNode*> parse_nodes) {
 	}
 }
 
-void parse_block(Label label) {
+void parse_rule(Label label) {
 	auto &[rule, pos_inside_rule] = label;
 	if (pos_inside_rule == rule.length()) {
 		pop();
