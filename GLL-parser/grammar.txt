@@ -1,1 +1,3 @@
-S SS SSS a
+S::=S+T|T
+T::=T*F|F
+F::=(S)|1

@@ -20,13 +20,8 @@ int current_position = 0;
 string input;
 vector<ParseNode*> parse_nodes;
 
-void init() {
-	//pending.push({ {"S", 0}, 0, 0, {}});
-	add({ "S", 0 }, 0, 0, {});
-}
-
 vector<ParseNode*> parse() {
-	init();
+	add({ "S", 0 }, 0, 0, {});
 	vector<ParseNode*> trees;
 	while (!pending.empty()) {
 		auto descriptor = pending.front();
@@ -39,7 +34,7 @@ vector<ParseNode*> parse() {
 		current_node = descriptor.node;
 		current_position = descriptor.position;
 		parse_nodes = descriptor.parse_nodes;
-		code(descriptor.label);
+		parse_block(descriptor.label);
 	}
 	return trees;
 }
@@ -107,52 +102,7 @@ void add(Label label, int node, int position, vector<ParseNode*> parse_nodes) {
 	}
 }
 
-string print_derivation(ParseNode* tree) {
-	vector<ParseNode*> terminals;
-	deque<ParseNode*> stack;
-	stack.push_front(tree);
-	string result = "";
-	result += tree->_literal;
-	result += "->";
-	while (!stack.empty()) {
-		ParseNode* nonterminal = stack.front();
-		stack.pop_front();
-		for (int i = nonterminal->children.size() - 1; i >= 0; i--) {
-			stack.push_front(nonterminal->children[i]);
-		}
-		while (!stack.empty() && stack.front()->children.empty()) {
-			terminals.push_back(stack.front());
-			stack.pop_front();
-		}
-		for (auto terminal : terminals) {
-			result += terminal->_literal;
-		}
-		for (auto nonterminal : stack) {
-			result += nonterminal->_literal;
-		}
-		if (!stack.empty()) {
-			result += "->";
-		}
-	}
-	return result;
-}
-
-void calculate_first(char alphabet_char) {
-	first[alphabet_char];
-	if (is_terminal(alphabet_char)) {
-		first[alphabet_char].insert(alphabet_char);
-		return;
-	}
-	for (auto rule : grammar[alphabet_char]) {
-		char first_ch = rule[0];
-		if (first.count(first_ch) == 0) {
-			calculate_first(first_ch);
-		}
-		first[alphabet_char].insert(first[first_ch].begin(), first[first_ch].end());
-	}
-}
-
-void code(Label label) {
+void parse_block(Label label) {
 	auto &[rule, pos_inside_rule] = label;
 	if (pos_inside_rule == rule.length()) {
 		pop();
@@ -181,25 +131,18 @@ void code(Label label) {
 	}
 }
 
-bool is_terminal(char ch) {
-	return isdigit(ch) || ispunct(ch) || islower(ch);
-}
-
 int main()
 {
 	ifstream grammar_file("../../../grammar.txt");
 	string line;
-	string non_terminal;
+	char non_terminal;
 	string rule;
 	map<char, bool> non_terminal_used;
 	while (!grammar_file.eof()) {
 		getline(grammar_file, line);
-		stringstream ss(line);
-		ss >> non_terminal;
-		non_terminal_used[non_terminal[0]] = false;
-		while (ss >> rule) {
-			grammar[non_terminal[0]].push_back(rule);
-		}
+		non_terminal = line[0];
+		non_terminal_used[non_terminal] = false;
+		grammar[non_terminal] = split(line.substr(4));
 	}
 	calculate_first('S');
 	cout << "enter the input string: " << endl;
